@@ -1,0 +1,36 @@
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local agent instructions and configuration
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+GEMINI.md
+.agents/
+.codex/
+.claude/
+.cursor/
+.aws/
+
+# Local development state and generated artifacts
+.idea/
+.vscode/
+.mypy_cache/
+.ruff_cache/
+*.log
+.coverage.*
+coverage.xml
+build/
+dist/
+*.egg-info/
+
+# Local credentials; keep .env.example versioned
+*.pem
+*.key
