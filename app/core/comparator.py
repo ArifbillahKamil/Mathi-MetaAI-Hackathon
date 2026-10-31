@@ -15,6 +15,7 @@ from pint.errors import PintError
 from pint.util import to_units_container
 
 from app.core.config import ScalarTolerance
+from app.core.evidence import CheckEvidence, CheckStatus
 from app.core.numbers import NonFiniteValue, Scalar, parse_scalar
 
 _UNITS = UnitRegistry(non_int_type=Fraction)
@@ -28,6 +29,10 @@ class Verdict(str, Enum):
 
 
 class Reason(str, Enum):
+    SET_CARDINALITY_MISMATCH = "SET_CARDINALITY_MISMATCH"
+    EXECUTION_MODULE_UNSUPPORTED = "EXECUTION_MODULE_UNSUPPORTED"
+    ROUTE_GENERATION_FAILED = "ROUTE_GENERATION_FAILED"
+    INDEPENDENCE_REJECTED = "INDEPENDENCE_REJECTED"
     TIGHT_AGREEMENT = "TIGHT_AGREEMENT"
     LOOSE_AGREEMENT = "LOOSE_AGREEMENT"
     NUMERIC_DISAGREEMENT = "NUMERIC_DISAGREEMENT"
@@ -45,19 +50,6 @@ class Reason(str, Enum):
     MISSING_ERROR_ESTIMATE = "MISSING_ERROR_ESTIMATE"
     INVALID_ERROR_ESTIMATE = "INVALID_ERROR_ESTIMATE"
     DEVIATION_CAUSE_MISSING = "DEVIATION_CAUSE_MISSING"
-
-
-class CheckStatus(str, Enum):
-    PASS = "PASS"
-    FAIL = "FAIL"
-    NOT_RUN = "NOT_RUN"
-
-
-@dataclass(frozen=True)
-class CheckEvidence:
-    name: str
-    status: CheckStatus
-    detail: str
 
 
 @dataclass(frozen=True)

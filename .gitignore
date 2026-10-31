@@ -34,3 +34,6 @@ dist/
 # Local credentials; keep .env.example versioned
 *.pem
 *.key
+
+# Generated local execution reports
+artifacts/

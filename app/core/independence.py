@@ -12,13 +12,15 @@ from enum import Enum
 from hashlib import sha256
 import json
 
-from app.core.comparator import CheckEvidence, CheckStatus
+from app.core.evidence import CheckEvidence, CheckStatus
+from app.core.repairs import RepairReason, guidance
 
 
 class Method(str, Enum):
     """Controlled IDs for planning; free-form labels cannot establish difference."""
 
     SYMBOLIC_INTEGRATION = "symbolic_integration"
+    MANUAL_INTEGRATION = "manual_integration"
     NUMERICAL_QUADRATURE = "numerical_quadrature"
     SYMBOLIC_ELIMINATION = "symbolic_elimination"
     NUMERICAL_ROOT_FINDING = "numerical_root_finding"
@@ -45,6 +47,10 @@ class RoutePlan:
     method_a: Method
     method_b: Method
     independence_rationale: str
+    # Trusted module text, never deserialized from a Planner response.
+    execution_contract: str | None = None
+    repair_a: RepairReason | None = None
+    repair_b: RepairReason | None = None
 
 
 @dataclass(frozen=True)
@@ -119,8 +125,15 @@ def _validate_plan(problem: str, plan: RoutePlan) -> GuardReason | None:
         return GuardReason.INVALID_PLAN
     if not isinstance(plan.independence_rationale, str) or not plan.independence_rationale.strip():
         return GuardReason.INVALID_PLAN
+    if plan.execution_contract is not None and (
+        not isinstance(plan.execution_contract, str) or not plan.execution_contract.strip()
+        or len(plan.execution_contract) > 16384
+    ):
+        return GuardReason.INVALID_PLAN
     if not isinstance(plan.method_a, Method) or not isinstance(plan.method_b, Method):
         return GuardReason.UNKNOWN_METHOD
+    if any(reason is not None and not isinstance(reason, RepairReason) for reason in (plan.repair_a, plan.repair_b)):
+        return GuardReason.INVALID_PLAN
     if plan.method_a == plan.method_b:
         return GuardReason.SAME_METHOD
     return None
@@ -137,15 +150,21 @@ def build_blind_requests(problem: str, plan: RoutePlan) -> tuple[BlindRequest, B
     if reason is not None:
         raise ValueError(reason.value)
 
-    def build(method: Method) -> BlindRequest:
+    def build(method: Method, repair: RepairReason | None) -> BlindRequest:
+        body = {"interpreted_problem": problem, "method": method.value}
+        if repair is not None:
+            body['repair_reason_code'] = repair.value
         payload = json.dumps(
-            {"interpreted_problem": problem, "method": method.value},
+            body,
             sort_keys=True,
             ensure_ascii=True,
         )
-        return BlindRequest((Message("system", _SYSTEM_PROMPT), Message("user", payload)))
+        system = _SYSTEM_PROMPT + (" " + plan.execution_contract if plan.execution_contract else "")
+        if repair is not None:
+            system += " " + guidance(repair)
+        return BlindRequest((Message("system", system), Message("user", payload)))
 
-    return build(plan.method_a), build(plan.method_b)
+    return build(plan.method_a, plan.repair_a), build(plan.method_b, plan.repair_b)
 
 
 class _StripDocstrings(ast.NodeTransformer):
